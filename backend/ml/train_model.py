@@ -36,7 +36,15 @@ DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/synthetic_msme.csv"
 df = pd.read_csv(DATA_PATH)
 
 # Features and label
-X = df[["profit_margin", "receivables_ratio", "emi_ratio", "cash_buffer_months"]]
+feature_cols = [
+    "profit_margin",
+    "receivables_ratio",
+    "emi_ratio",
+    "cash_buffer_months",
+    "sales_growth_rate",
+    "expense_growth_rate",
+]
+X = df[feature_cols].fillna(0.0)
 y = df["distress"]
 
 # Split into train/validation/test:

@@ -1,5 +1,6 @@
 import os
 import pickle
+import pandas as pd
 
 # Load model once at import time and fail loudly on invalid model artifact.
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.pkl")
@@ -30,7 +31,18 @@ def predict_risk(features: dict) -> float:
         features["receivables_ratio"],
         features["emi_ratio"],
         features["cash_buffer_months"],
+        features["sales_growth_rate"],
+        features["expense_growth_rate"],
     ]
 
-    probability = model.predict_proba([feature_vector])[0][1]
+    feature_columns = [
+        "profit_margin",
+        "receivables_ratio",
+        "emi_ratio",
+        "cash_buffer_months",
+        "sales_growth_rate",
+        "expense_growth_rate",
+    ]
+    feature_frame = pd.DataFrame([feature_vector], columns=feature_columns)
+    probability = model.predict_proba(feature_frame)[0][1]
     return float(probability)

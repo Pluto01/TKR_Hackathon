@@ -2,6 +2,8 @@
 MAX_RECEIVABLES_RATIO = 0.35      # receivables > 35% of monthly sales
 MAX_EMI_RATIO = 0.30              # loan EMI > 30% of monthly sales
 MIN_CASH_BUFFER_MONTHS = 1.0      # cash should cover at least 1 month of expenses
+MIN_SALES_GROWTH_RATE = -0.20     # sales decline worse than -20%
+MAX_EXPENSE_GROWTH_RATE = 0.15    # expense growth above 15%
 
 
 def _to_float(value, default=0.0):
@@ -63,6 +65,34 @@ def low_cash_buffer_rule(data):
             "warning": "Low cash buffer to absorb expense shocks",
             "suggestion": "Build emergency liquidity to cover at least one month of expenses",
             "feature": "cash_balance",
+        }
+
+    return None
+
+
+def declining_sales_momentum_rule(data):
+    sales_growth_rate = _to_float(data.get("sales_growth_rate"))
+
+    if sales_growth_rate < MIN_SALES_GROWTH_RATE:
+        return {
+            "severity": "MEDIUM",
+            "warning": "Revenue has declined significantly in recent months",
+            "suggestion": "Review pricing strategy, improve customer retention, or explore new revenue channels",
+            "feature": "sales_growth_rate",
+        }
+
+    return None
+
+
+def rising_expense_momentum_rule(data):
+    expense_growth_rate = _to_float(data.get("expense_growth_rate"))
+
+    if expense_growth_rate > MAX_EXPENSE_GROWTH_RATE:
+        return {
+            "severity": "MEDIUM",
+            "warning": "Operating expenses are increasing rapidly",
+            "suggestion": "Audit operational costs and reduce non-essential spending",
+            "feature": "expense_growth_rate",
         }
 
     return None

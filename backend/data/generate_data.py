@@ -24,6 +24,22 @@ for _ in range(NUM_SAMPLES):
     expense_ratio = _clip(random.normalvariate(0.78, 0.10), 0.50, 0.97)
     monthly_expenses = int(monthly_sales * expense_ratio)
 
+    # Simulate prior-quarter reference values for momentum features.
+    sales_3_months_ago = int(
+        _clip(
+            monthly_sales / _clip(random.normalvariate(1.03, 0.12), 0.65, 1.45),
+            30_000,
+            1_400_000,
+        )
+    )
+    expenses_3_months_ago = int(
+        _clip(
+            monthly_expenses / _clip(random.normalvariate(1.02, 0.12), 0.65, 1.45),
+            20_000,
+            1_300_000,
+        )
+    )
+
     # Ratios sampled from bounded distributions to avoid uniform-random artifacts.
     receivables_ratio = _clip(random.betavariate(2.0, 5.0), 0.0, 0.65)
     emi_ratio = _clip(random.betavariate(1.6, 6.0), 0.0, 0.45)
@@ -38,6 +54,16 @@ for _ in range(NUM_SAMPLES):
     receivables_ratio = receivables / monthly_sales
     emi_ratio = loan_emi / monthly_sales
     cash_buffer_months = cash_balance / max(monthly_expenses, 1)
+    sales_growth_rate = (
+        (monthly_sales - sales_3_months_ago) / sales_3_months_ago
+        if sales_3_months_ago > 0
+        else 0.0
+    )
+    expense_growth_rate = (
+        (monthly_expenses - expenses_3_months_ago) / expenses_3_months_ago
+        if expenses_3_months_ago > 0
+        else 0.0
+    )
 
     # Soft score + noise produces non-brittle labels.
     risk_score = (
@@ -45,6 +71,8 @@ for _ in range(NUM_SAMPLES):
         + 2.4 * max(0.0, emi_ratio - 0.22)
         + 1.7 * max(0.0, 1.0 - cash_buffer_months)
         + 1.6 * max(0.0, 0.10 - profit_margin)
+        + 0.9 * max(0.0, -sales_growth_rate - 0.08)
+        + 0.8 * max(0.0, expense_growth_rate - 0.12)
         + random.normalvariate(0.0, 0.08)
     )
 
@@ -56,6 +84,8 @@ for _ in range(NUM_SAMPLES):
             receivables_ratio,
             emi_ratio,
             cash_buffer_months,
+            sales_growth_rate,
+            expense_growth_rate,
             distress,
         ]
     )
@@ -67,6 +97,8 @@ df = pd.DataFrame(
         "receivables_ratio",
         "emi_ratio",
         "cash_buffer_months",
+        "sales_growth_rate",
+        "expense_growth_rate",
         "distress",
     ],
 )
