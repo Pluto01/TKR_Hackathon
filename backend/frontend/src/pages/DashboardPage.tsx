@@ -8,7 +8,7 @@ import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/componen
 import { useLanguage } from "@/lib/i18n";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
-const REQUEST_TIMEOUT_MS = 15000;
+const REQUEST_TIMEOUT_MS = 60000;
 const TOUR_STORAGE_KEY = "finpilot_dashboard_tour_done_v1";
 const formatINR = (value: number) => `₹${Number(value || 0).toLocaleString()}`;
 const metricsCacheKey = (userId: number) => `finpilot_metrics_user_${userId}`;
