@@ -36,7 +36,6 @@ def init_db() -> None:
         [("user_id", ASCENDING), ("checkin_date", ASCENDING)],
         unique=True,
     )
-    db.daily_checkins.create_index([("user_id", ASCENDING), ("checkin_date", ASCENDING)])
     db.user_metrics.create_index([("user_id", ASCENDING)], unique=True)
     db.counters.update_one(
         {"_id": "user_id"},
