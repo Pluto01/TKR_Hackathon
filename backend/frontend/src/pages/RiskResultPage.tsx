@@ -24,8 +24,8 @@ const RiskResultPage = () => {
     };
   }, []);
 
-  const riskPercent = Number(prediction?.risk_score ?? 78);
-  const riskLevelRaw = String(prediction?.risk_level ?? "HIGH");
+  const riskPercent = Number(prediction?.risk_score ?? 0);
+  const riskLevelRaw = String(prediction?.risk_level ?? (riskPercent > 0 ? "HIGH" : "LOW"));
   const riskLevel =
     riskLevelRaw === "LOW" || riskLevelRaw === "MEDIUM" || riskLevelRaw === "HIGH"
       ? (riskLevelRaw as "LOW" | "MEDIUM" | "HIGH")
