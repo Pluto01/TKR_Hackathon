@@ -13,6 +13,7 @@ const TOUR_STORAGE_KEY = "finpilot_dashboard_tour_done_v1";
 const formatINR = (value: number) => `₹${Number(value || 0).toLocaleString()}`;
 const metricsCacheKey = (userId: number) => `finpilot_metrics_user_${userId}`;
 const historyCacheKey = (userId: number) => `finpilot_history_user_${userId}`;
+const predictionCacheKey = (userId: number) => `finpilot_prediction_user_${userId}`;
 
 const renderTrendTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
@@ -45,6 +46,7 @@ const DashboardPage = () => {
   const { t, tr } = useLanguage();
   const [metrics, setMetrics] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
+  const [prediction, setPrediction] = useState<any>(null);
   const [trendView, setTrendView] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
@@ -68,14 +70,33 @@ const DashboardPage = () => {
     }
   }, []);
 
-  const prediction = useMemo(() => {
-    try {
-      const raw = localStorage.getItem("finpilot_prediction");
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  }, []);
+  const withTimeout = (url: string, options?: RequestInit) => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    return fetch(url, { ...options, signal: controller.signal }).finally(() => window.clearTimeout(timeoutId));
+  };
+
+  const refreshPrediction = async (userId: number, metricsInput?: any) => {
+    const source = metricsInput || metrics || {};
+    const payload = {
+      user_id: Number(userId),
+      use_daily_mode: true,
+      receivables: Number(source?.monthly_receivables || 0),
+      loan_emi: Number(source?.monthly_loan_emi || 0),
+      cash_balance: Number(source?.monthly_cash_balance || 0),
+    };
+    const resp = await withTimeout(`${API_BASE}/predict`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) return;
+    const data = await resp.json().catch(() => null);
+    if (!data) return;
+    setPrediction(data);
+    localStorage.setItem("finpilot_prediction", JSON.stringify(data));
+    localStorage.setItem(predictionCacheKey(userId), JSON.stringify(data));
+  };
 
   useEffect(() => {
     const run = async () => {
@@ -105,16 +126,27 @@ const DashboardPage = () => {
         } catch {
           // ignore cache parse errors
         }
+        try {
+          const cachedPrediction = localStorage.getItem(predictionCacheKey(userId));
+          if (cachedPrediction) {
+            const parsed = JSON.parse(cachedPrediction);
+            setPrediction(parsed);
+            localStorage.setItem("finpilot_prediction", JSON.stringify(parsed));
+          }
+        } catch {
+          // ignore cache parse errors
+        }
 
         const [metricsResp, historyResp] = await Promise.all([
-          fetch(`${API_BASE}/users/${userId}/metrics`),
-          fetch(`${API_BASE}/users/${userId}/checkins`),
+          withTimeout(`${API_BASE}/users/${userId}/metrics`),
+          withTimeout(`${API_BASE}/users/${userId}/checkins`),
         ]);
         if (metricsResp.ok) {
           const data = await metricsResp.json();
           setMetrics(data);
           localStorage.setItem("finpilot_metrics", JSON.stringify(data));
           localStorage.setItem(metricsCacheKey(userId), JSON.stringify(data));
+          await refreshPrediction(userId, data);
         }
         if (historyResp.ok) {
           const rows = await historyResp.json();
@@ -261,12 +293,6 @@ const DashboardPage = () => {
   };
 
   const refreshDashboardData = async (userId: number) => {
-    const withTimeout = (url: string, options?: RequestInit) => {
-      const controller = new AbortController();
-      const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-      return fetch(url, { ...options, signal: controller.signal }).finally(() => window.clearTimeout(timeoutId));
-    };
-
     const [metricsResp, historyResp] = await Promise.all([
       withTimeout(`${API_BASE}/users/${userId}/metrics`),
       withTimeout(`${API_BASE}/users/${userId}/checkins`),
@@ -276,6 +302,7 @@ const DashboardPage = () => {
       setMetrics(data);
       localStorage.setItem("finpilot_metrics", JSON.stringify(data));
       localStorage.setItem(metricsCacheKey(userId), JSON.stringify(data));
+      await refreshPrediction(userId, data);
     }
     if (historyResp.ok) {
       const rows = await historyResp.json();
@@ -527,8 +554,8 @@ const DashboardPage = () => {
     }
     return typeof analysis?.expensesMonthlyGrowth === "number" ? analysis.expensesMonthlyGrowth : 0;
   }, [monthlySeriesForGrowth, analysis]);
-  const riskPercent = Number(prediction?.risk_score || 78);
-  const riskLevelRaw = String(prediction?.risk_level || "HIGH");
+  const riskPercent = Number(prediction?.risk_score ?? 0);
+  const riskLevelRaw = String(prediction?.risk_level || (riskPercent > 0 ? "HIGH" : "LOW"));
   const riskLevel =
     riskLevelRaw === "LOW" || riskLevelRaw === "MEDIUM" || riskLevelRaw === "HIGH"
       ? (riskLevelRaw as "LOW" | "MEDIUM" | "HIGH")
