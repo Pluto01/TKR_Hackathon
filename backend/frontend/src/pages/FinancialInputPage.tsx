@@ -23,6 +23,7 @@ const loadingSteps = [
   "Compiling recommendations",
 ];
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+const predictionCacheKey = (userId: number) => `finpilot_prediction_user_${userId}`;
 
 const FinancialInputPage = () => {
   const navigate = useNavigate();
@@ -207,6 +208,9 @@ const FinancialInputPage = () => {
 
     if (predictResponse && !predictResponse.__error) {
       localStorage.setItem("finpilot_prediction", JSON.stringify(predictResponse));
+      if (userId) {
+        localStorage.setItem(predictionCacheKey(userId), JSON.stringify(predictResponse));
+      }
     } else {
       setLoading(false);
       setProgress(0);

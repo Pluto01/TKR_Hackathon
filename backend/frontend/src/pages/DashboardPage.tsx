@@ -76,28 +76,6 @@ const DashboardPage = () => {
     return fetch(url, { ...options, signal: controller.signal }).finally(() => window.clearTimeout(timeoutId));
   };
 
-  const refreshPrediction = async (userId: number, metricsInput?: any) => {
-    const source = metricsInput || metrics || {};
-    const payload = {
-      user_id: Number(userId),
-      use_daily_mode: true,
-      receivables: Number(source?.monthly_receivables || 0),
-      loan_emi: Number(source?.monthly_loan_emi || 0),
-      cash_balance: Number(source?.monthly_cash_balance || 0),
-    };
-    const resp = await withTimeout(`${API_BASE}/predict`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!resp.ok) return;
-    const data = await resp.json().catch(() => null);
-    if (!data) return;
-    setPrediction(data);
-    localStorage.setItem("finpilot_prediction", JSON.stringify(data));
-    localStorage.setItem(predictionCacheKey(userId), JSON.stringify(data));
-  };
-
   useEffect(() => {
     const run = async () => {
       try {
@@ -146,7 +124,6 @@ const DashboardPage = () => {
           setMetrics(data);
           localStorage.setItem("finpilot_metrics", JSON.stringify(data));
           localStorage.setItem(metricsCacheKey(userId), JSON.stringify(data));
-          await refreshPrediction(userId, data);
         }
         if (historyResp.ok) {
           const rows = await historyResp.json();
@@ -302,7 +279,6 @@ const DashboardPage = () => {
       setMetrics(data);
       localStorage.setItem("finpilot_metrics", JSON.stringify(data));
       localStorage.setItem(metricsCacheKey(userId), JSON.stringify(data));
-      await refreshPrediction(userId, data);
     }
     if (historyResp.ok) {
       const rows = await historyResp.json();
